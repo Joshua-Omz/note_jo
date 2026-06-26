@@ -34,6 +34,8 @@ class NoteEditorController extends ChangeNotifier {
   // ==========================================
   void _setupNode(NoteBlock block) {
     switch (block.type) {
+      case BlockType.divider:
+      return;
       
       // --- MULTI-FIELD BLOCKS (Path A: Composite Keys) ---
       case BlockType.scripture:
@@ -136,8 +138,24 @@ class NoteEditorController extends ChangeNotifier {
   // ==========================================
   void insertBlockAfter(int currentIndex, NoteBlock newBlock) {
     blocks.insert(currentIndex + 1, newBlock);
-    _setupNode(newBlock); // Wires up the new keys and listeners
+    _setupNode(newBlock); // for divider, _setupNode returns immediately (no-op)
     notifyListeners();
+
+    // Dividers have no TextField — auto-insert a paragraph after and focus that instead
+    if (newBlock.type == BlockType.divider) {
+      final paragraphBlock = NoteBlock(
+        id: UniqueKey().toString(),
+        type: BlockType.paragraph,
+        data: {'text': ''},
+      );
+      blocks.insert(currentIndex + 2, paragraphBlock);
+      _setupNode(paragraphBlock);
+      notifyListeners();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        focusNodes[paragraphBlock.id]?.requestFocus();
+      });
+      return; // skip the default focus logic below
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Handles focus for both standard and multi-field blocks
